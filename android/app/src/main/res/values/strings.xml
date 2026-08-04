@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Foxden</string>
+    <string name="title_activity_main">Foxden</string>
+    <string name="package_name">com.playfoxden.app</string>
+    <string name="custom_url_scheme">com.playfoxden.app</string>
+</resources>

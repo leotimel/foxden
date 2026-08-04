@@ -1,32 +1,47 @@
-# React + TypeScript + Vite
+# Foxden
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Platformer 2D original — Fenn, uma raposa antropomórfica, atravessando a
+Floresta de Foxden. Ver `../GAME_DESIGN.md`, `../ARCHITECTURE.md` e
+`../PLAYBOOK_PROMPTS.md` para o design e o plano de desenvolvimento.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Vite + React + TypeScript strict + Tailwind v4 + PixiJS. `src/engine/` é
+TS puro (física, colisão, regras) e não pode importar `react`, `react-dom`
+nem `pixi.js` — regra reforçada por ESLint (`eslint.config.js`).
 
-## React Compiler
+## Scripts
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```
+npm run dev        # servidor de desenvolvimento
+npm run build       # typecheck + build de produção (dist/)
+npm run preview     # servir o build de produção localmente
+npm run lint         # ESLint (inclui o guardrail do engine)
+npm run test          # Vitest em modo watch
+npm run test:run       # Vitest rodando uma vez
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Mobile (Capacitor)
+
+O mesmo build web (`dist/`) roda dentro de shells nativos iOS/Android via
+Capacitor — não há código nativo duplicado.
+
+Depois de qualquer mudança no app, sincronize os projetos nativos com o
+build mais recente:
+
+```
+npm run build
+npx cap sync
+```
+
+Para abrir cada plataforma no IDE nativo (necessário pra rodar num
+device/emulador ou gerar um build assinado):
+
+```
+npx cap open android   # abre no Android Studio
+npx cap open ios       # abre no Xcode (requer macOS)
+```
+
+`android/` e `ios/` são projetos nativos gerados pelo Capacitor — não
+edite os arquivos gerados manualmente além do necessário para configuração
+específica de plataforma (ícones, splash screen, permissões).
