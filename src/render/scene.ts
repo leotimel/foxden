@@ -2,10 +2,9 @@
  * Monta a cena Pixi do jogo: aplicação, chão provisório, o placeholder do
  * Fenn, e o laço de simulação com passo fixo.
  *
- * Fase 1.2: sem tilemap real (isso é Fase 2) e sem input de verdade (Fase
- * 1.3 pluga em `setInput`) — por enquanto o Fenn só cai e assenta no chão
- * provisório, provando a ponta a ponta engine → render antes de haver
- * controles.
+ * Ainda sem tilemap real (isso é Fase 2) — o chão é uma faixa fixa só pra
+ * não cair infinitamente. O input (teclado, ver `keyboardInput.ts`) chega
+ * de fora via `setInput`; esta cena não sabe de onde ele vem.
  *
  * O acumulador de tempo fica AQUI, não no engine: é o que reconcilia o
  * passo fixo determinístico do motor com o framerate variável da tela — o
@@ -24,8 +23,7 @@ import { createFennSprite } from './sprites/fenn'
 
 export interface Scene {
   app: Application
-  /** Substitui o input consumido pelo próximo tick de física. A Fase 1.3
-   *  (teclado) pluga aqui — a cena não precisa mudar. */
+  /** Substitui o input consumido pelo próximo tick de física. */
   setInput(input: FrameInput): void
   destroy(): void
 }

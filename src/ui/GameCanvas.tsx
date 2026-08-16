@@ -7,6 +7,7 @@
  * vaze um canvas ou uma cena "fantasma" rodando em paralelo.
  */
 import { useEffect, useRef } from 'react'
+import { bindKeyboardInput } from '../render/keyboardInput'
 import { createScene, type Scene } from '../render/scene'
 
 export function GameCanvas() {
@@ -18,6 +19,7 @@ export function GameCanvas() {
 
     let cancelled = false
     let scene: Scene | null = null
+    let unbindKeyboard: (() => void) | null = null
 
     createScene(container).then((created) => {
       if (cancelled) {
@@ -25,10 +27,12 @@ export function GameCanvas() {
         return
       }
       scene = created
+      unbindKeyboard = bindKeyboardInput(created.setInput)
     })
 
     return () => {
       cancelled = true
+      unbindKeyboard?.()
       scene?.destroy()
     }
   }, [])
