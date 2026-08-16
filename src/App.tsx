@@ -1,5 +1,7 @@
+import { GameCanvas } from './ui/GameCanvas'
+
 function App() {
-  return <div className="flex h-full items-center justify-center" />
+  return <GameCanvas />
 }
 
 export default App
