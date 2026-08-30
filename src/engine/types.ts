@@ -84,11 +84,13 @@ export interface PhysicsConfig {
   /** Frames que um press de pulo fica guardado esperando o chão (0 = desligado). */
   bufferFrames: number
   /**
-   * Altura do chão provisório, em tiles.
+   * Largura da caixa de colisão do Fenn, em tiles.
    *
-   * TEMPORÁRIO — a Fase 1 não tem colisão, mas sem algo onde aterrissar o
-   * `grounded` (e portanto coyote e buffer) fica intestável. Substituído por
-   * `collision.ts` contra o tilemap real na Fase 2.
+   * `pos` é a base (pé), centralizada horizontalmente — ver `collision.ts`.
+   * Fica em `PhysicsConfig` (não só no render) porque a colisão a consome
+   * a cada tick, não é só estética.
    */
-  floorY: number
+  width: number
+  /** Altura da caixa de colisão do Fenn, em tiles (a partir da base). */
+  height: number
 }

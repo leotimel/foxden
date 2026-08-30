@@ -11,6 +11,8 @@
  * positiva, impulso de pulo negativo. É a maior fonte de erro de sinal aqui.
  */
 
+import { resolveAxisX, resolveAxisY } from './collision'
+import type { Tilemap } from './level'
 import type { FrameInput, PhysicsConfig, PhysicsState, Vec2 } from './types'
 
 /**
@@ -49,7 +51,8 @@ export const DEFAULT_CONFIG: PhysicsConfig = {
   fallSpeedMax: 25,
   coyoteFrames: 6,
   bufferFrames: 6,
-  floorY: 0,
+  width: 0.8,
+  height: 1.5,
 }
 
 /** Cria o estado inicial do Fenn numa posição. */
@@ -108,6 +111,7 @@ export function step(
   state: PhysicsState,
   input: FrameInput,
   cfg: PhysicsConfig,
+  tilemap: Tilemap,
 ): PhysicsState {
   const wasGrounded = state.grounded
 
@@ -120,7 +124,7 @@ export function step(
       : -1
 
   // 3. Horizontal (usa o `grounded` do início do tick).
-  const vx = stepVelocityX(state.vel.x, input.moveX, wasGrounded, cfg)
+  let vx = stepVelocityX(state.vel.x, input.moveX, wasGrounded, cfg)
 
   // 4. Disparo do pulo: um press guardado dentro da janela de buffer, com o
   //    chão ainda válido (de fato ou por coyote time).
@@ -150,19 +154,33 @@ export function step(
   vy += (vy < 0 ? cfg.gravityRise : cfg.gravityFall) * FIXED_DT
   if (vy > cfg.fallSpeedMax) vy = cfg.fallSpeedMax
 
-  // 7. Integração semi-implícita de Euler: velocidade primeiro, posição depois.
-  const x = state.pos.x + vx * FIXED_DT
-  let y = state.pos.y + vy * FIXED_DT
+  // 7. Resolve X primeiro, usando o `y` do INÍCIO do tick (a colisão em Y
+  //    ainda não rodou). Colidir zera vx — parede não guarda inércia.
+  //    Essa ordem (X antes de Y) não é arbitrária: deixa o Fenn "escorregar"
+  //    horizontalmente por baixo de uma quina côncava (parede+teto em L)
+  //    antes da colisão vertical travar a subida, em vez de bater seco —
+  //    é o comportamento esperado do gênero, não um efeito colateral.
+  const moveX = resolveAxisX(state.pos.x, state.pos.y, cfg.width, cfg.height, vx * FIXED_DT, tilemap)
+  const x = moveX.position
+  if (moveX.collided) vx = 0
 
-  // 8. Chão provisório. TEMPORÁRIO — vira colisão contra o tilemap na Fase 2.
+  // 8. Resolve Y usando o `x` já resolvido no passo 7. Colidir caindo
+  //    (dy>0) = aterrissou (grounded); colidir subindo (dy<0) = bateu a
+  //    cabeça (zera vy, mas grounded continua false — ainda está no ar).
+  const dy = vy * FIXED_DT
+  const moveY = resolveAxisY(x, state.pos.y, cfg.width, cfg.height, dy, tilemap)
+  const y = moveY.position
   let grounded = false
-  if (y >= cfg.floorY) {
-    y = cfg.floorY
+  if (moveY.collided) {
     vy = 0
-    grounded = true
+    grounded = dy > 0
   }
 
-  // 9. Coyote time conta a partir do último frame no chão.
+  // 9. Coyote time conta a partir do último frame no chão. `dy` nunca é
+  //    exatamente 0 aqui quando grounded no tick anterior (a gravidade do
+  //    passo 6 acabou de empurrar vy pra baixo de novo), então a colisão em
+  //    Y sempre redispara e reconfirma `grounded` a cada tick — não precisa
+  //    de uma checagem de "chão" separada da colisão.
   framesSinceGrounded = grounded ? 0 : tickTimer(framesSinceGrounded)
 
   return {
@@ -187,11 +205,12 @@ export function simulate(
   initial: PhysicsState,
   inputs: readonly FrameInput[],
   cfg: PhysicsConfig,
+  tilemap: Tilemap,
 ): PhysicsState[] {
   const trajectory: PhysicsState[] = []
   let current = initial
   for (const input of inputs) {
-    current = step(current, input, cfg)
+    current = step(current, input, cfg, tilemap)
     trajectory.push(current)
   }
   return trajectory

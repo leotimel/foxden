@@ -8,26 +8,9 @@
 export const TILE_PX = 32
 
 /**
- * Tamanho visual do placeholder do Fenn, em tiles.
- *
- * PROVISÓRIO: a Fase 2 formaliza a caixa de colisão real contra o tilemap;
- * este valor é só estética por enquanto, não é consumido pelo engine.
+ * Onde a referência vertical fixa da câmera aparece na tela, como fração da
+ * altura do canvas (do topo pra baixo). A câmera só acompanha o Fenn no
+ * eixo X (ver `scene.ts`) — no eixo Y ela fica travada nessa fração, dando
+ * espaço visual acima para o pulo.
  */
-export const FENN_WIDTH_TILES = 0.8
-export const FENN_HEIGHT_TILES = 1.5
-
-/**
- * Onde o chão aparece na tela, como fração da altura do canvas (do topo pra
- * baixo). Dá espaço visual acima para o pulo.
- */
-export const GROUND_SCREEN_Y_RATIO = 0.7
-
-/** Espessura visual da faixa de chão provisória, em pixels. */
-export const GROUND_THICKNESS_PX = 40
-
-/**
- * Meia-largura da faixa de chão provisória, em tiles — bem larga só pra
- * "não cair infinitamente" sem precisar de tilemap real ainda (isso é
- * Fase 2).
- */
-export const GROUND_HALF_WIDTH_TILES = 500
+export const CAMERA_ANCHOR_Y_RATIO = 0.7
