@@ -11,14 +11,13 @@
  */
 import { Application, Container } from 'pixi.js'
 import { isOverlapping } from '../engine/collision'
-import { loadLevel } from '../engine/level'
+import { loadLevel, type LevelData } from '../engine/level'
 import { createLifecycleState, resolveLifecycle, type LifecycleState } from '../engine/lifecycle'
 import { DEFAULT_CONFIG, FIXED_DT, createState, step } from '../engine/physics'
 import type { FrameInput, PhysicsState } from '../engine/types'
 import { CAMERA_ANCHOR_Y_RATIO, TILE_PX } from './constants'
 import { createFennSprite } from './sprites/fenn'
 import { createTilemapSprite } from './sprites/tilemap'
-import testRoomData from '../levels/test-room.json'
 
 export interface Scene {
   app: Application
@@ -27,18 +26,20 @@ export interface Scene {
   destroy(): void
 }
 
-export async function createScene(container: HTMLElement): Promise<Scene> {
-  // Fase 2.3: fase de teste carregada de src/levels/test-room.json (mesmo
-  // layout desenhado nas Fases 2.1/2.2 — chão com buraco, checkpoint,
-  // parede baixa pulável, teto isolado, hazard, duas plataformas, parede
-  // alta intransponível — agora vindo de dado, não de código).
-  const level = loadLevel(testRoomData)
+/**
+ * Monta a cena pra uma fase específica. `levelData` vem de quem chama
+ * (Fase 3.2: a tela de mapa-mundo escolhe qual `src/levels/**.json`
+ * carregar) — a cena em si não sabe nem precisa saber de onde os dados
+ * vieram.
+ */
+export async function createScene(container: HTMLElement, levelData: LevelData): Promise<Scene> {
+  const level = loadLevel(levelData)
   const { tilemap } = level
 
   /** Cair além disso (em tiles) conta como "vazio" — morte + respawn no
    *  checkpoint atual (ver `lifecycle.ts`). `height` já é a linha logo
    *  abaixo do chão definido, então não precisa de margem extra. */
-  const voidY = testRoomData.height
+  const voidY = levelData.height
 
   if (isOverlapping(level.spawn, DEFAULT_CONFIG.width, DEFAULT_CONFIG.height, tilemap)) {
     throw new Error('scene: spawn da fase sobrepõe geometria sólida do tilemap.')
