@@ -11,7 +11,7 @@
  * placeholder visual. left=x-w/2, right=x+w/2, top=y-h, bottom=y.
  */
 import type { Vec2 } from './types'
-import { isSolidTile, type Tilemap } from './level'
+import { isSolidTile, tileKey, type Tilemap } from './level'
 
 /** Tolerância para "toque" (encostar sem sobrepor) não contar como colisão. */
 const EPS = 1e-4
@@ -143,6 +143,40 @@ export function resolveAxisY(
 }
 
 /**
+ * Primeiro tile de `tiles` que a AABB nesta posição sobrepõe, ou `null`.
+ * Primitiva compartilhada por `isOverlapping` (contra `tilemap.solid`) e
+ * por `lifecycle.ts` (contra hazards/checkpoints) — mesmo range de
+ * col/row, mesma regra de epsilon, um lugar só pra acertar isso.
+ */
+export function findOverlappingTile(
+  pos: Vec2,
+  width: number,
+  height: number,
+  tiles: ReadonlySet<string>,
+): { col: number; row: number } | null {
+  const colMin = minEdgeTile(pos.x - width / 2)
+  const colMax = maxEdgeTile(pos.x + width / 2)
+  const rowMin = minEdgeTile(pos.y - height)
+  const rowMax = maxEdgeTile(pos.y)
+  for (let row = rowMin; row <= rowMax; row++) {
+    for (let col = colMin; col <= colMax; col++) {
+      if (tiles.has(tileKey(col, row))) return { col, row }
+    }
+  }
+  return null
+}
+
+/** A AABB nesta posição sobrepõe algum tile de `tiles`? */
+export function isOverlappingSet(
+  pos: Vec2,
+  width: number,
+  height: number,
+  tiles: ReadonlySet<string>,
+): boolean {
+  return findOverlappingTile(pos, width, height, tiles) !== null
+}
+
+/**
  * A AABB nesta posição já sobrepõe algum tile sólido? Usado uma vez, no
  * spawn (não a cada tick) — pega dado de fase quebrado (spawn dentro de
  * geometria sólida) antes que produza uma trajetória indefinida.
@@ -153,14 +187,5 @@ export function isOverlapping(
   height: number,
   tilemap: Tilemap,
 ): boolean {
-  const colMin = minEdgeTile(pos.x - width / 2)
-  const colMax = maxEdgeTile(pos.x + width / 2)
-  const rowMin = minEdgeTile(pos.y - height)
-  const rowMax = maxEdgeTile(pos.y)
-  for (let row = rowMin; row <= rowMax; row++) {
-    for (let col = colMin; col <= colMax; col++) {
-      if (isSolidTile(tilemap, col, row)) return true
-    }
-  }
-  return false
+  return isOverlappingSet(pos, width, height, tilemap.solid)
 }

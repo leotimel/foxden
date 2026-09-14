@@ -36,7 +36,7 @@ const TEST_TILEMAP: Tilemap = (() => {
   for (let col = -50; col <= 150; col++) solid.add(tileKey(col, FLOOR_ROW))
   // Cobre a altura do Fenn (height=1.5) parado em pé: rows -2 e -1.
   for (let row = -3; row <= FLOOR_ROW; row++) solid.add(tileKey(WALL_COL, row))
-  return { solid }
+  return { solid, hazards: new Set(), checkpoints: new Set() }
 })()
 
 /** `simulate` já fixado no tilemap de teste — todo teste usa o mesmo mundo. */

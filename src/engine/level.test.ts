@@ -24,6 +24,17 @@ describe('tilemapFromRows', () => {
     expect(isSolidTile(map, 0, -1)).toBe(false)
     expect(isSolidTile(map, 0, 5)).toBe(false)
   })
+
+  it('"^" é hazard e "C" é checkpoint, não sólido', () => {
+    const map = tilemapFromRows(['#^C'])
+    expect(isSolidTile(map, 0, 0)).toBe(true)
+    expect(isSolidTile(map, 1, 0)).toBe(false)
+    expect(isSolidTile(map, 2, 0)).toBe(false)
+    expect(map.hazards.has(tileKey(1, 0))).toBe(true)
+    expect(map.checkpoints.has(tileKey(2, 0))).toBe(true)
+    expect(map.hazards.has(tileKey(2, 0))).toBe(false)
+    expect(map.checkpoints.has(tileKey(1, 0))).toBe(false)
+  })
 })
 
 describe('flatFloor', () => {

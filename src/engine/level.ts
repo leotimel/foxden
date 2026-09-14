@@ -1,19 +1,24 @@
 /**
- * Tilemap em grid: só a geometria (sólido vs. vazio), sem nada de conteúdo
- * de fase (checkpoints, colecionáveis, spawn, saída — isso é Fase 2.3, que
- * ainda não existe). `collision.ts` consome isso para resolver a AABB do
- * Fenn contra o mundo.
+ * Tilemap em grid: geometria (sólido vs. vazio) + marcadores de gameplay
+ * (hazards, checkpoints) que `lifecycle.ts` consome. Ainda NÃO é o formato
+ * de fase real — dimensões, spawn, saída, colecionáveis e o loader de JSON
+ * são Fase 2.3. `collision.ts` consome `solid` para resolver a AABB do
+ * Fenn contra o mundo; `lifecycle.ts` consome `hazards`/`checkpoints`.
  *
- * Representação esparsa: só os tiles sólidos existem no `Set`. Qualquer
- * coordenada fora dele é vazia — inclusive fora dos limites "autorais" do
- * grid, em qualquer direção. Cair do mapa é comportamento válido (vira
- * queda livre), não um bug; morte por queda é responsabilidade de uma fase
- * futura, não deste módulo.
+ * Representação esparsa: cada categoria é o conjunto dos tiles daquele
+ * tipo. Qualquer coordenada fora de um `Set` é "não é desse tipo" —
+ * inclusive fora dos limites "autorais" do grid, em qualquer direção. Cair
+ * do mapa sem tocar nada é comportamento válido (vira queda livre até o
+ * limite de vazio que `lifecycle.ts` recebe como parâmetro), não um bug.
  */
 
-/** Um tilemap: o conjunto de coordenadas (col,row) que são sólidas. */
+/** Um tilemap: os conjuntos de coordenadas (col,row) de cada tipo de tile. */
 export interface Tilemap {
   solid: ReadonlySet<string>
+  /** Tocar mata (respawna no checkpoint, -1 vida) — ver `lifecycle.ts`. */
+  hazards: ReadonlySet<string>
+  /** Tocar vira o novo ponto de respawn — ver `lifecycle.ts`. */
+  checkpoints: ReadonlySet<string>
 }
 
 /** Chave canônica de uma coordenada de tile, usada como entrada do `Set`. */
@@ -29,18 +34,24 @@ export function isSolidTile(tilemap: Tilemap, col: number, row: number): boolean
 /**
  * Constrói um tilemap a partir de linhas ASCII — linha 0 é o TOPO do grid
  * (mesma convenção de eixos do motor, Y crescendo para baixo). `.` e espaço
- * são vazios; qualquer outro caractere é sólido. Formato pensado pra
- * autoria legível de fixtures de teste, não é o formato de fase real.
+ * são vazios; `^` é hazard; `C` é checkpoint; qualquer outro caractere
+ * (convenção: `#`) é sólido. Formato pensado pra autoria legível de
+ * fixtures de teste, não é o formato de fase real.
  */
 export function tilemapFromRows(rows: readonly string[]): Tilemap {
   const solid = new Set<string>()
+  const hazards = new Set<string>()
+  const checkpoints = new Set<string>()
   rows.forEach((line, row) => {
     for (let col = 0; col < line.length; col++) {
       const ch = line[col]
-      if (ch !== '.' && ch !== ' ') solid.add(tileKey(col, row))
+      const key = tileKey(col, row)
+      if (ch === '^') hazards.add(key)
+      else if (ch === 'C') checkpoints.add(key)
+      else if (ch !== '.' && ch !== ' ') solid.add(key)
     }
   })
-  return { solid }
+  return { solid, hazards, checkpoints }
 }
 
 /**
@@ -51,5 +62,5 @@ export function tilemapFromRows(rows: readonly string[]): Tilemap {
 export function flatFloor(row: number, colMin: number, colMax: number): Tilemap {
   const solid = new Set<string>()
   for (let col = colMin; col <= colMax; col++) solid.add(tileKey(col, row))
-  return { solid }
+  return { solid, hazards: new Set(), checkpoints: new Set() }
 }

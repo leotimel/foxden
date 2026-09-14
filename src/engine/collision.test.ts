@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isOverlapping, resolveAxisX, resolveAxisY } from './collision'
+import { findOverlappingTile, isOverlapping, isOverlappingSet, resolveAxisX, resolveAxisY } from './collision'
 import { flatFloor, tileKey, tilemapFromRows, type Tilemap } from './level'
 
 /**
@@ -11,13 +11,13 @@ import { flatFloor, tileKey, tilemapFromRows, type Tilemap } from './level'
  */
 const W = 1
 const H = 2
-const EMPTY: Tilemap = { solid: new Set() }
+const EMPTY: Tilemap = { solid: new Set(), hazards: new Set(), checkpoints: new Set() }
 
 /** Parede vertical de 1 tile de largura, de `rowMin` a `rowMax` (inclusive). */
 function verticalWall(col: number, rowMin: number, rowMax: number): Tilemap {
   const solid = new Set<string>()
   for (let row = rowMin; row <= rowMax; row++) solid.add(tileKey(col, row))
-  return { solid }
+  return { solid, hazards: new Set(), checkpoints: new Set() }
 }
 
 describe('tilemap vazio', () => {
@@ -115,5 +115,25 @@ describe('isOverlapping', () => {
 
   it('false num tilemap vazio', () => {
     expect(isOverlapping({ x: 0, y: 0 }, W, H, EMPTY)).toBe(false)
+  })
+})
+
+describe('findOverlappingTile / isOverlappingSet', () => {
+  it('encontra o tile e devolve col/row quando sobrepõe', () => {
+    const tiles = new Set([tileKey(3, 4)])
+    expect(findOverlappingTile({ x: 3.5, y: 5 }, W, H, tiles)).toEqual({ col: 3, row: 4 })
+    expect(isOverlappingSet({ x: 3.5, y: 5 }, W, H, tiles)).toBe(true)
+  })
+
+  it('null / false quando não sobrepõe nada', () => {
+    const tiles = new Set([tileKey(3, 4)])
+    expect(findOverlappingTile({ x: 20, y: 20 }, W, H, tiles)).toBeNull()
+    expect(isOverlappingSet({ x: 20, y: 20 }, W, H, tiles)).toBe(false)
+  })
+
+  it('respeita a mesma regra de epsilon nas bordas que resolveAxisX/Y', () => {
+    // bottom = y = 4 exatamente na borda do tile (3,4) — toque, não overlap.
+    const tiles = new Set([tileKey(3, 4)])
+    expect(isOverlappingSet({ x: 3.5, y: 4 }, W, H, tiles)).toBe(false)
   })
 })
