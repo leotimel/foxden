@@ -12,12 +12,19 @@
  * lista de propósito (via ref): um componente pai passando uma arrow
  * function nova a cada render não pode derrubar a cena no meio de uma
  * fase só porque a referência da função mudou.
+ *
+ * `setInput` da cena (Fase 4.1) fica em estado do React só pra poder
+ * passar pra `TouchControls` — o teclado (`keyboardInput.ts`) continua
+ * ligado direto no `created.setInput` dentro do efeito, sem precisar
+ * desse estado.
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { LevelData } from '../engine/level'
 import type { StarResult } from '../engine/scoring'
 import { bindKeyboardInput } from '../render/keyboardInput'
 import { createScene, type Scene } from '../render/scene'
+import { TouchControls } from './TouchControls'
+import { useShouldShowTouchControls } from './useShouldShowTouchControls'
 
 interface GameCanvasProps {
   levelId: string
@@ -34,6 +41,9 @@ export function GameCanvas({ levelId, levelData, onComplete }: GameCanvasProps) 
     onCompleteRef.current = onComplete
   })
 
+  const [setInput, setSetInput] = useState<Scene['setInput'] | null>(null)
+  const showTouchControls = useShouldShowTouchControls()
+
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
@@ -49,14 +59,21 @@ export function GameCanvas({ levelId, levelData, onComplete }: GameCanvasProps) 
       }
       scene = created
       unbindKeyboard = bindKeyboardInput(created.setInput)
+      setSetInput(() => created.setInput)
     })
 
     return () => {
       cancelled = true
       unbindKeyboard?.()
       scene?.destroy()
+      setSetInput(null)
     }
   }, [levelId, levelData])
 
-  return <div ref={containerRef} className="h-full w-full" />
+  return (
+    <div className="relative h-full w-full">
+      <div ref={containerRef} className="h-full w-full" />
+      {showTouchControls && setInput && <TouchControls setInput={setInput} />}
+    </div>
+  )
 }
