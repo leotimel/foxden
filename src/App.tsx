@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { GameCanvas } from './ui/GameCanvas'
 import { WorldMap } from './ui/WorldMap'
 import { TUTORIAL_LEVELS } from './ui/levels'
-import { markLevelVisited } from './ui/progress'
+import { recordStars } from './ui/progress'
 
 type View = { screen: 'map' } | { screen: 'playing'; levelId: string }
 
@@ -19,7 +19,14 @@ function App() {
     }
     return (
       <div className="relative h-full w-full">
-        <GameCanvas levelId={level.id} levelData={level.data} />
+        <GameCanvas
+          levelId={level.id}
+          levelData={level.data}
+          onComplete={(result) => {
+            recordStars(level.id, result.stars)
+            setView({ screen: 'map' })
+          }}
+        />
         <button
           type="button"
           onClick={() => setView({ screen: 'map' })}
@@ -31,14 +38,7 @@ function App() {
     )
   }
 
-  return (
-    <WorldMap
-      onSelectLevel={(levelId) => {
-        markLevelVisited(levelId)
-        setView({ screen: 'playing', levelId })
-      }}
-    />
-  )
+  return <WorldMap onSelectLevel={(levelId) => setView({ screen: 'playing', levelId })} />
 }
 
 export default App

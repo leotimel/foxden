@@ -56,6 +56,7 @@ describe('loadLevel', () => {
     spawn: { x: 0.5, y: 1 },
     exit: { x: 2.5, y: 1 },
     collectibles: [{ x: 1.5, y: 0.5 }],
+    parTimeSeconds: 30,
   }
 
   it('converte o tilemap ASCII e repassa spawn/exit/collectibles sem alterar', () => {

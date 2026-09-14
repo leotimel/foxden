@@ -74,9 +74,11 @@ export function flatFloor(row: number, colMin: number, colMax: number): Tilemap 
  * `tilemap` usa a mesma convenção ASCII de `tilemapFromRows`. `width`/
  * `height` descrevem a área jogável definida (em tiles); cair além de
  * `height` conta como vazio — ver `lifecycle.ts` (`voidY`). `collectibles`
- * é só posições por enquanto: SEM lógica de coleta/pontuação ainda (isso é
- * Fase 3.3) — o dado existe pra não precisar mudar o formato do arquivo
- * depois.
+ * é usado por `scoring.ts` (Fase 3.3) pro critério "colecionáveis pegos"
+ * das estrelas. `parTimeSeconds` é o critério "tempo sob um limite" — uma
+ * estimativa inicial por fase, não calibrada por playtesting ainda (mesmo
+ * espírito da pendência de calibração de estrelas por mundo do
+ * GAME_DESIGN.md), fácil de ajustar aqui sem tocar em código.
  */
 export interface LevelData {
   width: number
@@ -85,6 +87,7 @@ export interface LevelData {
   spawn: Vec2
   exit: Vec2
   collectibles: readonly Vec2[]
+  parTimeSeconds: number
 }
 
 /** Uma fase carregada: tilemap já pronto pra colisão + os dados de posição. */
@@ -93,6 +96,7 @@ export interface LoadedLevel {
   spawn: Vec2
   exit: Vec2
   collectibles: readonly Vec2[]
+  parTimeSeconds: number
 }
 
 /**
@@ -109,5 +113,6 @@ export function loadLevel(data: LevelData): LoadedLevel {
     spawn: data.spawn,
     exit: data.exit,
     collectibles: data.collectibles,
+    parTimeSeconds: data.parTimeSeconds,
   }
 }

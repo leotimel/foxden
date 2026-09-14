@@ -12,8 +12,14 @@
 import { Application, Container } from 'pixi.js'
 import { isOverlapping } from '../engine/collision'
 import { loadLevel, type LevelData } from '../engine/level'
-import { createLifecycleState, resolveLifecycle, type LifecycleState } from '../engine/lifecycle'
+import {
+  createLifecycleState,
+  resolveLifecycle,
+  STARTING_LIVES,
+  type LifecycleState,
+} from '../engine/lifecycle'
 import { DEFAULT_CONFIG, FIXED_DT, createState, step } from '../engine/physics'
+import { calculateStars, createRunState, hasReachedExit, updateRun, type StarResult } from '../engine/scoring'
 import type { FrameInput, PhysicsState } from '../engine/types'
 import { CAMERA_ANCHOR_Y_RATIO, TILE_PX } from './constants'
 import { createFennSprite } from './sprites/fenn'
@@ -31,8 +37,18 @@ export interface Scene {
  * (Fase 3.2: a tela de mapa-mundo escolhe qual `src/levels/**.json`
  * carregar) — a cena em si não sabe nem precisa saber de onde os dados
  * vieram.
+ *
+ * `onComplete` (Fase 3.3) dispara UMA vez, quando o Fenn alcança a saída,
+ * com as estrelas calculadas pra essa corrida — quem chama decide o que
+ * fazer (persistir, voltar pro mapa). A cena continua rodando depois
+ * disso (não trava input nem física); é responsabilidade de quem chama
+ * desmontar a cena caso queira sair da fase nesse momento.
  */
-export async function createScene(container: HTMLElement, levelData: LevelData): Promise<Scene> {
+export async function createScene(
+  container: HTMLElement,
+  levelData: LevelData,
+  onComplete?: (result: StarResult) => void,
+): Promise<Scene> {
   const level = loadLevel(levelData)
   const { tilemap } = level
 
@@ -64,6 +80,8 @@ export async function createScene(container: HTMLElement, levelData: LevelData):
 
   let physicsState: PhysicsState = createState(level.spawn, true)
   let lifecycleState: LifecycleState = createLifecycleState(level.spawn)
+  let runState = createRunState()
+  let completed = false
   let input: FrameInput = { moveX: 0, jumpHeld: false }
   let accumulatorS = 0
 
@@ -94,6 +112,25 @@ export async function createScene(container: HTMLElement, levelData: LevelData):
       )
       physicsState = resolved.physics
       lifecycleState = resolved.lifecycle
+      runState = updateRun(
+        runState,
+        physicsState.pos,
+        DEFAULT_CONFIG.width,
+        DEFAULT_CONFIG.height,
+        level.collectibles,
+      )
+      if (!completed && hasReachedExit(physicsState.pos, DEFAULT_CONFIG.width, level.exit)) {
+        completed = true
+        onComplete?.(
+          calculateStars(
+            runState,
+            level.collectibles.length,
+            lifecycleState.lives,
+            STARTING_LIVES,
+            level.parTimeSeconds,
+          ),
+        )
+      }
       accumulatorS -= FIXED_DT
     }
     fenn.x = physicsState.pos.x * TILE_PX

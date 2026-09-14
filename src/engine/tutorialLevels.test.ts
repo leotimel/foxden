@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { STARTING_LIVES, createLifecycleState, resolveLifecycle } from './lifecycle'
 import { loadLevel, type LevelData, type LoadedLevel } from './level'
 import { DEFAULT_CONFIG, createState, step } from './physics'
+import { calculateStars, createRunState, hasReachedExit, updateRun, type StarResult } from './scoring'
 import type { FrameInput, PhysicsState } from './types'
 import tutorial1 from '../levels/tutorial/tutorial-1.json'
 import tutorial2 from '../levels/tutorial/tutorial-2.json'
@@ -52,9 +53,11 @@ function autoplay(
 ) {
   let physics: PhysicsState = createState(level.spawn, true)
   let lifecycle = createLifecycleState(level.spawn)
+  let run = createRunState()
   let triggerIndex = 0
   let holdRemaining = 0
   let minLives = lifecycle.lives
+  let stars: StarResult | null = null
 
   for (let i = 0; i < maxTicks && physics.pos.x < exitX; i++) {
     if (
@@ -82,9 +85,13 @@ function autoplay(
     physics = resolved.physics
     lifecycle = resolved.lifecycle
     if (lifecycle.lives < minLives) minLives = lifecycle.lives
+    run = updateRun(run, physics.pos, DEFAULT_CONFIG.width, DEFAULT_CONFIG.height, level.collectibles)
+    if (!stars && hasReachedExit(physics.pos, DEFAULT_CONFIG.width, level.exit)) {
+      stars = calculateStars(run, level.collectibles.length, lifecycle.lives, STARTING_LIVES, level.parTimeSeconds)
+    }
   }
 
-  return { physics, lifecycle, minLives, triggersUsed: triggerIndex }
+  return { physics, lifecycle, minLives, triggersUsed: triggerIndex, stars }
 }
 
 function load(data: LevelData) {
@@ -101,6 +108,16 @@ describe('tutorial-1: corrida básica', () => {
     const result = autoplay(level, voidY, tutorial1.exit.x, triggers, 250)
     expect(result.minLives).toBe(STARTING_LIVES) // nenhuma morte
     expect(result.physics.pos.x).toBeGreaterThanOrEqual(tutorial1.exit.x)
+    // Percurso "limpo" (sem coletar o bônus opcional de propósito): sem
+    // morte + dentro do par time = 2 estrelas. Confirma que o par time
+    // escolhido é alcançável por uma corrida direta, sem ser trivial
+    // (também vale 3 estrelas se passar pelo bônus).
+    expect(result.stars).toEqual({
+      stars: 2,
+      collectedAll: false,
+      noDeath: true,
+      underParTime: true,
+    })
   })
 })
 
@@ -114,6 +131,12 @@ describe('tutorial-2: pulo curto vs. longo', () => {
     const result = autoplay(level, voidY, tutorial2.exit.x, triggers, 320)
     expect(result.minLives).toBe(STARTING_LIVES)
     expect(result.physics.pos.x).toBeGreaterThanOrEqual(tutorial2.exit.x)
+    expect(result.stars).toEqual({
+      stars: 2,
+      collectedAll: false,
+      noDeath: true,
+      underParTime: true,
+    })
   })
 
   it('pulo LONGO sob o teto baixo bate a cabeça (prova que a restrição é real)', () => {
@@ -139,6 +162,12 @@ describe('tutorial-3: timing de plataformas', () => {
     const result = autoplay(level, voidY, tutorial3.exit.x, triggers, 400)
     expect(result.minLives).toBe(STARTING_LIVES)
     expect(result.physics.pos.x).toBeGreaterThanOrEqual(tutorial3.exit.x)
+    expect(result.stars).toEqual({
+      stars: 2,
+      collectedAll: false,
+      noDeath: true,
+      underParTime: true,
+    })
   })
 })
 
@@ -156,6 +185,12 @@ describe('tutorial-4: síntese', () => {
     const result = autoplay(level, voidY, tutorial4.exit.x, triggers, 450)
     expect(result.minLives).toBe(STARTING_LIVES)
     expect(result.physics.pos.x).toBeGreaterThanOrEqual(tutorial4.exit.x)
+    expect(result.stars).toEqual({
+      stars: 2,
+      collectedAll: false,
+      noDeath: true,
+      underParTime: true,
+    })
   })
 })
 
