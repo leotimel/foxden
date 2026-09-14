@@ -11,13 +11,14 @@
  */
 import { Application, Container } from 'pixi.js'
 import { isOverlapping } from '../engine/collision'
-import { tileKey, type Tilemap } from '../engine/level'
+import { loadLevel } from '../engine/level'
 import { createLifecycleState, resolveLifecycle, type LifecycleState } from '../engine/lifecycle'
 import { DEFAULT_CONFIG, FIXED_DT, createState, step } from '../engine/physics'
-import type { FrameInput, PhysicsState, Vec2 } from '../engine/types'
+import type { FrameInput, PhysicsState } from '../engine/types'
 import { CAMERA_ANCHOR_Y_RATIO, TILE_PX } from './constants'
 import { createFennSprite } from './sprites/fenn'
 import { createTilemapSprite } from './sprites/tilemap'
+import testRoomData from '../levels/test-room.json'
 
 export interface Scene {
   app: Application
@@ -26,96 +27,21 @@ export interface Scene {
   destroy(): void
 }
 
-/**
- * Sala de teste PROVISÓRIA (Fases 2.1-2.2) — prova a colisão contra chão,
- * buraco, parede baixa (vencível pulando), parede alta (intransponível),
- * teto baixo isolado (bate-cabeça), plataformas em alturas diferentes, e
- * agora vidas/checkpoint/hazard. Isso NÃO é o formato de fase real (o
- * loader de JSON de fase é Fase 2.3) — é um fixture de dev, construído com
- * os mesmos tiles de 1x1 do engine, e some quando a Fase 2.3 existir.
- *
- * Layout (linha = altura em tiles; menor row = mais alto na tela, Y desce):
- * chão em FLOOR_ROW com um buraco de 4 tiles (cair nele agora mata de
- * verdade — antes da Fase 2.2 caía pra sempre sem consequência); um
- * checkpoint logo depois do buraco (pra provar que morrer mais tarde no
- * percurso respawna ali, não lá no spawn original); parede baixa de 2
- * tiles (ápice do pulo tunado na Fase 1 é ~3.5 tiles, então é vencível); um
- * tile de teto isolado bem acima do chão, sem suporte, pra bater a cabeça
- * ao pular embaixo; um hazard no chão mais adiante; duas plataformas
- * flutuantes em alturas crescentes; e uma parede de 6 tiles no fim, mais
- * alta que o ápice — intransponível mesmo pulando.
- */
-const FLOOR_ROW = 13
-const GROUND_MIN_COL = 0
-const GROUND_MAX_COL = 45
-const GAP_MIN_COL = 10
-const GAP_MAX_COL = 13
-
-const CHECKPOINT_COL = 16
-const CHECKPOINT_ROW = FLOOR_ROW - 1 // uma linha acima do chão — "altura do corpo".
-
-const LOW_WALL_MIN_COL = 20
-const LOW_WALL_MAX_COL = 21
-const LOW_WALL_TOP_ROW = 11 // 2 tiles de altura: rows 11-12.
-
-const HEAD_BONK_COL = 24
-const HEAD_BONK_ROW = 9
-
-const HAZARD_COL = 27
-const HAZARD_ROW = FLOOR_ROW - 1
-
-const PLATFORM_B_MIN_COL = 31
-const PLATFORM_B_MAX_COL = 34
-const PLATFORM_B_ROW = 10
-
-const PLATFORM_C_MIN_COL = 36
-const PLATFORM_C_MAX_COL = 38
-const PLATFORM_C_ROW = 8
-
-const TALL_WALL_MIN_COL = 44
-const TALL_WALL_MAX_COL = 45
-const TALL_WALL_TOP_ROW = 7 // 6 tiles de altura: rows 7-12 (+ base no chão).
-
-const SPAWN: Vec2 = { x: 2, y: FLOOR_ROW }
-
-/** Cair além disso (em tiles) conta como "vazio" — morte + respawn no
- *  checkpoint atual (ver `lifecycle.ts`). Margem generosa: bem além de
- *  qualquer arco de pulo normal, só pega quem realmente caiu do mapa. */
-const VOID_Y = FLOOR_ROW + 10
-
-function buildTestRoomTilemap(): Tilemap {
-  const solid = new Set<string>()
-  const hazards = new Set<string>()
-  const checkpoints = new Set<string>()
-
-  for (let col = GROUND_MIN_COL; col <= GROUND_MAX_COL; col++) {
-    if (col >= GAP_MIN_COL && col <= GAP_MAX_COL) continue
-    solid.add(tileKey(col, FLOOR_ROW))
-  }
-  checkpoints.add(tileKey(CHECKPOINT_COL, CHECKPOINT_ROW))
-  for (let col = LOW_WALL_MIN_COL; col <= LOW_WALL_MAX_COL; col++) {
-    for (let row = LOW_WALL_TOP_ROW; row < FLOOR_ROW; row++) solid.add(tileKey(col, row))
-  }
-  solid.add(tileKey(HEAD_BONK_COL, HEAD_BONK_ROW))
-  hazards.add(tileKey(HAZARD_COL, HAZARD_ROW))
-  for (let col = PLATFORM_B_MIN_COL; col <= PLATFORM_B_MAX_COL; col++) {
-    solid.add(tileKey(col, PLATFORM_B_ROW))
-  }
-  for (let col = PLATFORM_C_MIN_COL; col <= PLATFORM_C_MAX_COL; col++) {
-    solid.add(tileKey(col, PLATFORM_C_ROW))
-  }
-  for (let col = TALL_WALL_MIN_COL; col <= TALL_WALL_MAX_COL; col++) {
-    for (let row = TALL_WALL_TOP_ROW; row <= FLOOR_ROW; row++) solid.add(tileKey(col, row))
-  }
-
-  return { solid, hazards, checkpoints }
-}
-
 export async function createScene(container: HTMLElement): Promise<Scene> {
-  const tilemap = buildTestRoomTilemap()
+  // Fase 2.3: fase de teste carregada de src/levels/test-room.json (mesmo
+  // layout desenhado nas Fases 2.1/2.2 — chão com buraco, checkpoint,
+  // parede baixa pulável, teto isolado, hazard, duas plataformas, parede
+  // alta intransponível — agora vindo de dado, não de código).
+  const level = loadLevel(testRoomData)
+  const { tilemap } = level
 
-  if (isOverlapping(SPAWN, DEFAULT_CONFIG.width, DEFAULT_CONFIG.height, tilemap)) {
-    throw new Error('scene: SPAWN sobrepõe geometria sólida do tilemap de teste.')
+  /** Cair além disso (em tiles) conta como "vazio" — morte + respawn no
+   *  checkpoint atual (ver `lifecycle.ts`). `height` já é a linha logo
+   *  abaixo do chão definido, então não precisa de margem extra. */
+  const voidY = testRoomData.height
+
+  if (isOverlapping(level.spawn, DEFAULT_CONFIG.width, DEFAULT_CONFIG.height, tilemap)) {
+    throw new Error('scene: spawn da fase sobrepõe geometria sólida do tilemap.')
   }
 
   const app = new Application()
@@ -135,17 +61,16 @@ export async function createScene(container: HTMLElement): Promise<Scene> {
   const fenn = createFennSprite(DEFAULT_CONFIG.width, DEFAULT_CONFIG.height)
   world.addChild(fenn)
 
-  let physicsState: PhysicsState = createState(SPAWN, true)
-  let lifecycleState: LifecycleState = createLifecycleState(SPAWN)
+  let physicsState: PhysicsState = createState(level.spawn, true)
+  let lifecycleState: LifecycleState = createLifecycleState(level.spawn)
   let input: FrameInput = { moveX: 0, jumpHeld: false }
   let accumulatorS = 0
 
   /** Câmera simples: só acompanha o Fenn no eixo X. O eixo Y fica travado
-   *  numa referência fixa (a altura do chão da sala de teste) — sem follow
-   *  vertical. */
+   *  numa referência fixa (a altura do spawn da fase) — sem follow vertical. */
   function positionCamera() {
     world.x = app.screen.width / 2 - fenn.x
-    world.y = app.screen.height * CAMERA_ANCHOR_Y_RATIO - FLOOR_ROW * TILE_PX
+    world.y = app.screen.height * CAMERA_ANCHOR_Y_RATIO - level.spawn.y * TILE_PX
   }
 
   app.renderer.on('resize', positionCamera)
@@ -164,7 +89,7 @@ export async function createScene(container: HTMLElement): Promise<Scene> {
         DEFAULT_CONFIG.width,
         DEFAULT_CONFIG.height,
         tilemap,
-        VOID_Y,
+        voidY,
       )
       physicsState = resolved.physics
       lifecycleState = resolved.lifecycle

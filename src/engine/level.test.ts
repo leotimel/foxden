@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { flatFloor, isSolidTile, tileKey, tilemapFromRows } from './level'
+import { flatFloor, isSolidTile, loadLevel, tileKey, tilemapFromRows, type LevelData } from './level'
 
 describe('tileKey', () => {
   it('coordenadas diferentes nunca colidem no mesmo formato', () => {
@@ -45,5 +45,26 @@ describe('flatFloor', () => {
     expect(isSolidTile(map, -3, 3)).toBe(false)
     expect(isSolidTile(map, 3, 3)).toBe(false)
     expect(isSolidTile(map, 0, 4)).toBe(false)
+  })
+})
+
+describe('loadLevel', () => {
+  const DATA: LevelData = {
+    width: 3,
+    height: 2,
+    tilemap: ['.^C', '###'],
+    spawn: { x: 0.5, y: 1 },
+    exit: { x: 2.5, y: 1 },
+    collectibles: [{ x: 1.5, y: 0.5 }],
+  }
+
+  it('converte o tilemap ASCII e repassa spawn/exit/collectibles sem alterar', () => {
+    const level = loadLevel(DATA)
+    expect(isSolidTile(level.tilemap, 0, 1)).toBe(true)
+    expect(level.tilemap.hazards.has(tileKey(1, 0))).toBe(true)
+    expect(level.tilemap.checkpoints.has(tileKey(2, 0))).toBe(true)
+    expect(level.spawn).toEqual(DATA.spawn)
+    expect(level.exit).toEqual(DATA.exit)
+    expect(level.collectibles).toEqual(DATA.collectibles)
   })
 })
